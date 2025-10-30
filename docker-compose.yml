@@ -1,0 +1,46 @@
+services:
+  # MySQL Database Service
+  mysql-db:
+    image: mysql:8.0
+    container_name: mysql-holiday-db # Consistent name
+    ports:
+      - "3309:3306" # Using host port 3309 (matches application-local.properties)
+    environment:
+      MYSQL_DATABASE: holiday_db
+      MYSQL_ROOT_PASSWORD: password
+    volumes:
+      - mysql-holiday-data:/var/lib/mysql # Consistent name
+    networks:
+      - holiday-network # Consistent name
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ppassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Spring Boot Application Service
+  holiday-service: # Consistent service name
+    build: .
+    container_name: holiday-app-service # Consistent container name
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-db:3306/holiday_db?useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: password
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update # Correct property name
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.MySQLDialect
+      # Added Nager API URL environment variable
+      API_NAGER_URL: ${API_NAGER_URL:-https://date.nager.at/api/v3/PublicHolidays}
+    networks:
+      - holiday-network # Consistent name
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+
+volumes:
+  mysql-holiday-data: # Consistent name
+
+networks:
+  holiday-network: # Consistent name
